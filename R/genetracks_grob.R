@@ -170,9 +170,9 @@ genetextGrob <- function(text_pos, TX, xrange, cex.text) {
                        (TX$tmax < xrange[2] + diff(xrange) * 0.04))
     tg <- lapply(tfilter, function(i) {
       textGrob(label = if (TX$strand[i] == "+") {
-        bquote(.(TX$gene_name[i]) * symbol("\256"))
+        bquote(.(TX$gene_name[i]))
       } else {     
-        bquote(symbol("\254") * .(TX$gene_name[i]))
+        bquote(.(TX$gene_name[i]))
       },
       x = unit(TX$mean[i], "native"),
       y = unit(-TX$row[i] + 0.45, "native"),
@@ -182,9 +182,9 @@ genetextGrob <- function(text_pos, TX, xrange, cex.text) {
     tfilter <- which(TX$tmin > xrange[1])
     tg <- lapply(tfilter, function(i) {
       textGrob(label = if (TX$strand[i] == "+") {
-        bquote(.(TX$gene_name[i]) * symbol("\256"))
+        bquote(.(TX$gene_name[i]))
       } else {     
-        bquote(symbol("\254") * .(TX$gene_name[i]))
+        bquote(.(TX$gene_name[i]))
       },
       x = unit(pmax(TX$start[i],
                     xrange[1] - diff(xrange) * 0.04) - diff(xrange) * 0.01,
