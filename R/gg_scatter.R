@@ -44,6 +44,9 @@
 #'   specified by `shape`. This vector is passed to
 #'   `ggplot2::scale_shape_manual()` as the argument `values`. See [points()]
 #'   for a list of shapes and the numbers they map to.
+#' @param highlight_snps Character vector of SNP IDs to highlight with golden
+#'   halos. Highlighted SNPs will be plotted on top with a larger golden ring
+#'   surrounding them. Set to `NULL` for no highlighting (default).
 #' @param ... Optional arguments passed to `geom_text_repel()` to configure
 #'   label drawing.
 #' @return Returns a ggplot2 plot.
@@ -101,7 +104,8 @@ gg_scatter <- function(loc,
                        eqtl_gene = NULL,
                        beta = NULL,
                        shape = NULL,
-                       shape_values = c(21, 24, 25), ...) {
+                       shape_values = c(21, 24, 25),
+                       highlight_snps = NULL, ...) {
     if (!inherits(loc, "locus")) stop("Object of class 'locus' required")
     if (is.null(loc$data)) stop("No data points, only gene tracks")
 
@@ -247,6 +251,21 @@ gg_scatter <- function(loc,
     }
     ind <- data[, loc$labs] %in% index_snp
 
+    # Identify highlighted SNPs
+    highlight_ind <- if (!is.null(highlight_snps)) {
+        data[, loc$labs] %in% highlight_snps
+    } else {
+        rep(FALSE, nrow(data))
+    }
+
+    # Reorder data so highlighted SNPs plot on top
+    if (any(highlight_ind)) {
+        data <- data[order(highlight_ind), ]
+        # Recalculate indices after reordering
+        ind <- data[, loc$labs] %in% index_snp
+        highlight_ind <- data[, loc$labs] %in% highlight_snps
+    }
+
     if (!recomb) {
         if (is.null(shape)) {
             # standard plot
@@ -261,16 +280,35 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                geom_point(shape = 21, size = size) +
+                # golden halos for highlighted SNPs
+                (if (any(highlight_ind)) {
+                    geom_point(
+                        data = data[highlight_ind, ],
+                        aes(y = .data[[loc$yvar]]),
+                        shape = 21, size = size + 1, stroke = 1.5,
+                        color = "gold", fill = NA
+                    )
+                }) +
+                geom_point(shape = 21, size = size, stroke = 0) +
                 # index SNP
                 (if (any(ind)) {
-                    geom_point(
-                        data = data[ind, ],
-                        aes(
-                            y = .data[[loc$yvar]], color = .data$col,
-                            fill = .data$bg
-                        ),
-                        shape = 23, size = size
+                    list(
+                        if (any(ind & highlight_ind)) {
+                            geom_point(
+                                data = data[ind & highlight_ind, ],
+                                aes(y = .data[[loc$yvar]]),
+                                shape = 23, size = size + 1, stroke = 1.5,
+                                color = "gold", fill = NA
+                            )
+                        },
+                        geom_point(
+                            data = data[ind, ],
+                            aes(
+                                y = .data[[loc$yvar]], color = .data$col,
+                                fill = .data$bg
+                            ),
+                            shape = 23, size = size, stroke = 0
+                        )
                     )
                 })
         } else {
@@ -287,7 +325,16 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                geom_point(size = size) +
+                # golden halos for highlighted SNPs
+                (if (any(highlight_ind)) {
+                    geom_point(
+                        data = data[highlight_ind, ],
+                        aes(y = .data[[loc$yvar]], shape = .data[[shape]]),
+                        size = size + 1, stroke = 1.5,
+                        color = "gold", fill = NA
+                    )
+                }) +
+                geom_point(size = size, stroke = 0) +
                 scale_shape_manual(
                     values = shape_values, name = NULL,
                     breaks = shape_breaks,
@@ -344,18 +391,37 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
+                # golden halos for highlighted SNPs
+                (if (any(highlight_ind)) {
+                    geom_point(
+                        data = data[highlight_ind, ],
+                        aes(y = .data[[loc$yvar]]),
+                        shape = 21, size = size + 1, stroke = 1.5,
+                        color = "gold", fill = NA, na.rm = TRUE
+                    )
+                }) +
                 geom_point(aes(
                     y = .data[[loc$yvar]], color = .data$col,
                     fill = .data$bg
-                ), shape = 21, size = size, na.rm = TRUE) +
+                ), shape = 21, size = size, stroke = 0, na.rm = TRUE) +
                 # index SNP
                 (if (any(ind)) {
-                    geom_point(
-                        data = data[ind, ],
-                        aes(
-                            y = .data[[loc$yvar]], color = .data$col,
-                            fill = .data$bg
-                        ), shape = 23, size = size, na.rm = TRUE
+                    list(
+                        if (any(ind & highlight_ind)) {
+                            geom_point(
+                                data = data[ind & highlight_ind, ],
+                                aes(y = .data[[loc$yvar]]),
+                                shape = 23, size = size + 1, stroke = 1.5,
+                                color = "gold", fill = NA, na.rm = TRUE
+                            )
+                        },
+                        geom_point(
+                            data = data[ind, ],
+                            aes(
+                                y = .data[[loc$yvar]], color = .data$col,
+                                fill = .data$bg
+                            ), shape = 23, size = size, stroke = 0, na.rm = TRUE
+                        )
                     )
                 })
         } else {
@@ -368,10 +434,19 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
+                # golden halos for highlighted SNPs
+                (if (any(highlight_ind)) {
+                    geom_point(
+                        data = data[highlight_ind, ],
+                        aes(y = .data[[loc$yvar]], shape = .data[[shape]]),
+                        size = size + 1, stroke = 1.5,
+                        color = "gold", fill = NA, na.rm = TRUE
+                    )
+                }) +
                 geom_point(aes(
                     y = .data[[loc$yvar]], color = .data$col, fill = .data$bg,
                     shape = .data[[shape]]
-                ), size = size, na.rm = TRUE) +
+                ), size = size, stroke = 0, na.rm = TRUE) +
                 scale_shape_manual(
                     values = shape_values, name = NULL,
                     breaks = shape_breaks,

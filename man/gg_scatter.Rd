@@ -22,6 +22,7 @@ gg_scatter(
   showLD = TRUE,
   LD_scheme = c("grey", "royalblue", "cyan2", "green3", "orange", "red", "purple"),
   recomb_col = "blue",
+  recomb_linewidth = 0.35,
   recomb_offset = 0,
   legend_pos = "topleft",
   labels = NULL,
@@ -29,6 +30,7 @@ gg_scatter(
   beta = NULL,
   shape = NULL,
   shape_values = c(21, 24, 25),
+  highlight_snps = NULL,
   ...
 )
 }
@@ -99,6 +101,10 @@ specified by \code{shape}. This vector is passed to
 \code{ggplot2::scale_shape_manual()} as the argument \code{values}. See \code{\link[=points]{points()}}
 for a list of shapes and the numbers they map to.}
 
+\item{highlight_snps}{Character vector of SNP IDs to highlight with golden
+halos. Highlighted SNPs will be plotted on top with a larger golden ring
+surrounding them. Set to \code{NULL} for no highlighting (default).}
+
 \item{...}{Optional arguments passed to \code{geom_text_repel()} to configure
 label drawing.}
 }
@@ -116,11 +122,13 @@ points, but this is not possible with ggplot2 as the secondary y axis data
 must be plotted on top of the primary scatter point data.
 }
 \examples{
-if(require(EnsDb.Hsapiens.v75)) {
-data(SLE_gwas_sub)
-loc <- locus(SLE_gwas_sub, gene = 'IRF5', flank = c(7e4, 2e5), LD = "r2",
-             ens_db = "EnsDb.Hsapiens.v75")
-gg_scatter(loc)
+if (require(EnsDb.Hsapiens.v75)) {
+    data(SLE_gwas_sub)
+    loc <- locus(SLE_gwas_sub,
+        gene = "IRF5", flank = c(7e4, 2e5), LD = "r2",
+        ens_db = "EnsDb.Hsapiens.v75"
+    )
+    gg_scatter(loc)
 }
 }
 \seealso{
