@@ -1,82 +1,3 @@
-#' Locus scatter plot using ggplot2
-#'
-#' Produces a scatter plot from a 'locus' class object (without gene tracks).
-#'
-#' @param loc Object of class 'locus' to use for plot. See [locus].
-#' @param index_snp Specifies index SNP to be shown in a different colour and
-#'   symbol. Defaults to the SNP with the lowest p-value. Set to `NULL` to not
-#'   show this.
-#' @param pcutoff Cut-off for p value significance. Defaults to p = 5e-08. Set
-#'   to `NULL` to disable.
-#' @param scheme Vector of 3 colours if LD is not shown: 1st = normal points,
-#'   2nd = colour for significant points, 3rd = index SNP.
-#' @param size Specifies size for points.
-#' @param cex.axis Specifies font size for axis numbering.
-#' @param cex.lab Specifies font size for axis titles.
-#' @param xlab x axis title.
-#' @param ylab y axis title.
-#' @param ylim y axis limits (y1, y2).
-#' @param ylim2 Secondary y axis limits for recombination line.
-#' @param yzero Logical whether to force y axis limit to include y=0.
-#' @param xticks Logical whether x axis numbers and axis title are plotted.
-#' @param border Logical whether a bounding box is plotted around the plot.
-#' @param showLD Logical whether to show LD with colours
-#' @param LD_scheme Vector of colours for plotting LD. The first colour is for SNPs
-#'   which lack LD information. The next 5 colours are for r2 or D' LD results
-#'   ranging from 0 to 1 in intervals of 0.2. The final colour is for the index
-#'   SNP.
-#' @param recomb_col Colour for recombination rate line if recombination rate
-#'   data is present. Set to NA to hide the line. See [link_recomb()] to add
-#'   recombination rate data.
-#' @param recomb_offset Offset from 0-1 which shifts the scatter plot up and
-#'   recombination line plot down. Recommended value 0.1.
-#' @param legend_pos Position of legend. Set to `NULL` to hide legend.
-#' @param labels Character vector of SNP or genomic feature IDs to label. The
-#'   value "index" selects the highest point or index SNP as defined when
-#'   [locus()] is called. Set to `NULL` to remove all labels.
-#' @param eqtl_gene Optional column name in `loc$data` for colouring eQTL genes.
-#' @param beta Optional column name for beta coefficient to display upward
-#'   triangles for positive beta and downward triangles for negative beta
-#'   (significant SNPs only).
-#' @param shape Optional column name in `loc$data` for controlling shapes.
-#'   `beta` and `shape` cannot both be set. This column is expected to be a factor.
-#' @param shape_values Vector of shape values which match levels of the column
-#'   specified by `shape`. This vector is passed to
-#'   `ggplot2::scale_shape_manual()` as the argument `values`. See [points()]
-#'   for a list of shapes and the numbers they map to.
-#' @param highlight_snps Character vector of SNP IDs to highlight with golden
-#'   halos. Highlighted SNPs will be plotted on top with a larger golden ring
-#'   surrounding them. Set to `NULL` for no highlighting (default).
-#' @param ... Optional arguments passed to `geom_text_repel()` to configure
-#'   label drawing.
-#' @return Returns a ggplot2 plot.
-#' @details
-#' If recombination rate data is included in the locus object following a call
-#' to [link_recomb()], this is plotted as an additional line with a secondary y
-#' axis. In the base graphics version the line is placed under the scatter
-#' points, but this is not possible with ggplot2 as the secondary y axis data
-#' must be plotted on top of the primary scatter point data.
-#'
-#' @seealso [locus()] [gg_addgenes()]
-#' @examples
-#' if (require(EnsDb.Hsapiens.v75)) {
-#'     data(SLE_gwas_sub)
-#'     loc <- locus(SLE_gwas_sub,
-#'         gene = "IRF5", flank = c(7e4, 2e5), LD = "r2",
-#'         ens_db = "EnsDb.Hsapiens.v75"
-#'     )
-#'     gg_scatter(loc)
-#' }
-#' @importFrom ggplot2 ggplot geom_point xlim ylim labs theme_classic theme
-#'  scale_fill_manual scale_color_manual aes guide_legend element_text
-#'  element_blank element_rect unit geom_hline scale_y_continuous sec_axis
-#'  geom_line scale_shape_manual guides
-#' @importFrom ggrepel geom_text_repel
-#' @importFrom dplyr bind_rows
-#' @importFrom rlang .data
-#' @importFrom zoo na.approx
-#' @export
-#'
 gg_scatter <- function(loc,
                        index_snp = loc$index_snp,
                        pcutoff = 5e-08,
@@ -105,7 +26,9 @@ gg_scatter <- function(loc,
                        beta = NULL,
                        shape = NULL,
                        shape_values = c(21, 24, 25),
-                       highlight_snps = NULL, ...) {
+                       highlight_snps = NULL,
+                       highlight_size_add = 0.5,
+                       highlight_stroke = 0.5, ...) {
     if (!inherits(loc, "locus")) stop("Object of class 'locus' required")
     if (is.null(loc$data)) stop("No data points, only gene tracks")
 
@@ -179,7 +102,7 @@ gg_scatter <- function(loc,
     if (!is.null(legend_pos)) {
         if (legend_pos == "topleft") {
             legend.justification <- c(0, 1)
-            legend.position <- c(0.01, 0.99)
+            legend.position <- c(0.05, 0.99)
         } else if (legend_pos == "topright") {
             legend.justification <- c(1, 1)
             legend.position <- c(0.99, 0.99)
@@ -280,27 +203,10 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                # golden halos for highlighted SNPs
-                (if (any(highlight_ind)) {
-                    geom_point(
-                        data = data[highlight_ind, ],
-                        aes(y = .data[[loc$yvar]]),
-                        shape = 21, size = size + 1, stroke = 1.5,
-                        color = "gold", fill = NA
-                    )
-                }) +
                 geom_point(shape = 21, size = size, stroke = 0) +
                 # index SNP
                 (if (any(ind)) {
                     list(
-                        if (any(ind & highlight_ind)) {
-                            geom_point(
-                                data = data[ind & highlight_ind, ],
-                                aes(y = .data[[loc$yvar]]),
-                                shape = 23, size = size + 1, stroke = 1.5,
-                                color = "gold", fill = NA
-                            )
-                        },
                         geom_point(
                             data = data[ind, ],
                             aes(
@@ -309,6 +215,23 @@ gg_scatter <- function(loc,
                             ),
                             shape = 23, size = size, stroke = 0
                         )
+                    )
+                }) +
+                # golden halos for highlighted SNPs - plotted last to be on top
+                (if (any(highlight_ind & !ind)) {
+                    geom_point(
+                        data = data[highlight_ind & !ind, ],
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]]),
+                        shape = 21, size = size + highlight_size_add, stroke = highlight_stroke,
+                        color = "gold", fill = NA
+                    )
+                }) +
+                (if (any(ind & highlight_ind)) {
+                    geom_point(
+                        data = data[ind & highlight_ind, ],
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]]),
+                        shape = 23, size = size + highlight_size_add, stroke = highlight_stroke,
+                        color = "gold", fill = NA
                     )
                 })
         } else {
@@ -325,16 +248,16 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                # golden halos for highlighted SNPs
+                geom_point(size = size, stroke = 0) +
+                # golden halos for highlighted SNPs - plotted last to be on top
                 (if (any(highlight_ind)) {
                     geom_point(
                         data = data[highlight_ind, ],
-                        aes(y = .data[[loc$yvar]], shape = .data[[shape]]),
-                        size = size + 1, stroke = 1.5,
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]], shape = .data[[shape]]),
+                        size = size + highlight_size_add, stroke = highlight_stroke,
                         color = "gold", fill = NA
                     )
                 }) +
-                geom_point(size = size, stroke = 0) +
                 scale_shape_manual(
                     values = shape_values, name = NULL,
                     breaks = shape_breaks,
@@ -359,7 +282,6 @@ gg_scatter <- function(loc,
                 breaks = levels(data$col), values = levels(data$col),
                 guide = "none"
             ) +
-            # scale_shape_manual(breaks = levels(data$pch), values = levels(data$pch)) +
             xlim(loc$xrange[1] / 1e6, loc$xrange[2] / 1e6) + ylim(yrange) +
             labs(x = xlab, y = ylab) +
             theme_classic() +
@@ -391,15 +313,11 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                # golden halos for highlighted SNPs
-                (if (any(highlight_ind)) {
-                    geom_point(
-                        data = data[highlight_ind, ],
-                        aes(y = .data[[loc$yvar]]),
-                        shape = 21, size = size + 1, stroke = 1.5,
-                        color = "gold", fill = NA, na.rm = TRUE
-                    )
-                }) +
+                # recombination line plotted first (behind points)
+                geom_line(aes(y = fy2(.data$recomb)),
+                    color = recomb_col, linewidth = recomb_linewidth,
+                    na.rm = TRUE
+                ) +
                 geom_point(aes(
                     y = .data[[loc$yvar]], color = .data$col,
                     fill = .data$bg
@@ -407,14 +325,6 @@ gg_scatter <- function(loc,
                 # index SNP
                 (if (any(ind)) {
                     list(
-                        if (any(ind & highlight_ind)) {
-                            geom_point(
-                                data = data[ind & highlight_ind, ],
-                                aes(y = .data[[loc$yvar]]),
-                                shape = 23, size = size + 1, stroke = 1.5,
-                                color = "gold", fill = NA, na.rm = TRUE
-                            )
-                        },
                         geom_point(
                             data = data[ind, ],
                             aes(
@@ -422,6 +332,23 @@ gg_scatter <- function(loc,
                                 fill = .data$bg
                             ), shape = 23, size = size, stroke = 0, na.rm = TRUE
                         )
+                    )
+                }) +
+                # golden halos for highlighted SNPs - plotted last to be on top
+                (if (any(highlight_ind & !ind)) {
+                    geom_point(
+                        data = data[highlight_ind & !ind, ],
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]]),
+                        shape = 21, size = size + highlight_size_add, stroke = highlight_stroke,
+                        color = "gold", fill = NA, na.rm = TRUE
+                    )
+                }) +
+                (if (any(ind & highlight_ind)) {
+                    geom_point(
+                        data = data[ind & highlight_ind, ],
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]]),
+                        shape = 23, size = size + highlight_size_add, stroke = highlight_stroke,
+                        color = "gold", fill = NA, na.rm = TRUE
                     )
                 })
         } else {
@@ -434,19 +361,24 @@ gg_scatter <- function(loc,
                         colour = "grey", linetype = "dashed"
                     )
                 }) +
-                # golden halos for highlighted SNPs
-                (if (any(highlight_ind)) {
-                    geom_point(
-                        data = data[highlight_ind, ],
-                        aes(y = .data[[loc$yvar]], shape = .data[[shape]]),
-                        size = size + 1, stroke = 1.5,
-                        color = "gold", fill = NA, na.rm = TRUE
-                    )
-                }) +
+                # recombination line plotted first (behind points)
+                geom_line(aes(y = fy2(.data$recomb)),
+                    color = recomb_col, linewidth = recomb_linewidth,
+                    na.rm = TRUE
+                ) +
                 geom_point(aes(
                     y = .data[[loc$yvar]], color = .data$col, fill = .data$bg,
                     shape = .data[[shape]]
                 ), size = size, stroke = 0, na.rm = TRUE) +
+                # golden halos for highlighted SNPs - plotted last to be on top
+                (if (any(highlight_ind)) {
+                    geom_point(
+                        data = data[highlight_ind, ],
+                        aes(x = .data[[loc$pos]], y = .data[[loc$yvar]], shape = .data[[shape]]),
+                        size = size + highlight_size_add, stroke = highlight_stroke,
+                        color = "gold", fill = NA, na.rm = TRUE
+                    )
+                }) +
                 scale_shape_manual(
                     values = shape_values, name = NULL,
                     breaks = shape_breaks,
@@ -470,10 +402,6 @@ gg_scatter <- function(loc,
             scale_color_manual(
                 breaks = levels(data$col), values = levels(data$col),
                 guide = "none"
-            ) +
-            geom_line(aes(y = fy2(.data$recomb)),
-                color = recomb_col, linewidth = recomb_linewidth,
-                na.rm = TRUE
             ) +
             scale_y_continuous(
                 name = ylab,
@@ -531,7 +459,6 @@ gg_scatter <- function(loc,
     }
     p
 }
-
 
 nmessage <- function(...) {
     argList <- list(...)
