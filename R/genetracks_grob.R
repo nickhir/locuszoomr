@@ -31,6 +31,12 @@
 #' @param blanks Controls handling of genes with blank names: `"fill"` replaces
 #'   blank gene symbols with ensembl gene ids. `"hide"` hides genes which are
 #'   missing gene symbols.
+#' @param setrownumber Numeric value specifying the exact number of rows to
+#'   allocate for gene tracks. When specified, genes are distributed across
+#'   the requested number of rows using proportional scaling. If fewer rows are
+#'   naturally needed, genes are spread out to maintain relative spacing. If more
+#'   rows are needed, genes are wrapped and may overlap. Takes precedence over
+#'   \code{maxrows}. Default is \code{NULL}.
 #' @return A grob object.
 #' @examples
 #' if(require(EnsDb.Hsapiens.v75)) {
@@ -55,6 +61,7 @@ genetracks_grob <- function(locus,
                             exon_border = 'blue4',
                             showExons = TRUE,
                             maxrows = NULL,
+                            setrownumber = NULL,
                             text_pos = 'top',
                             italics = FALSE,
                             highlight = NULL,
@@ -81,9 +88,36 @@ genetracks_grob <- function(locus,
   
   TX <- mapRow(TX, xlim = xrange, cex.text = cex.text, text_pos = text_pos,
                blanks = blanks)
-  maxrows <- if (is.null(maxrows)) max(TX$row) else min(c(max(TX$row), maxrows))
-  if (max(TX$row) > maxrows) message(max(TX$row), " tracks needed to show all genes")
-  TX <- TX[TX$row <= maxrows, ]
+
+  # Handle setrownumber: force specific number of rows
+  if (!is.null(setrownumber)) {
+    original_max_row <- max(TX$row)
+
+    if (original_max_row < setrownumber) {
+      # Case A: Spread genes proportionally across more rows
+      TX$row <- ceiling(TX$row * setrownumber / original_max_row)
+      maxrows <- setrownumber
+      message("Spreading ", original_max_row, " tracks across ",
+              setrownumber, " rows with proportional spacing")
+
+    } else if (original_max_row > setrownumber) {
+      # Case B: Compress genes by wrapping (allows overlaps)
+      TX$row <- ((TX$row - 1) %% setrownumber) + 1
+      maxrows <- setrownumber
+      message(original_max_row, " tracks needed; wrapping into ",
+              setrownumber, " rows (overlaps may occur)")
+
+    } else {
+      # Case C: Perfect match, no transformation needed
+      maxrows <- setrownumber
+    }
+
+  } else {
+    # Original maxrows behavior: cap at maximum
+    maxrows <- if (is.null(maxrows)) max(TX$row) else min(c(max(TX$row), maxrows))
+    if (max(TX$row) > maxrows) message(max(TX$row), " tracks needed to show all genes")
+    TX <- TX[TX$row <= maxrows, ]
+  }
     
   ylim <- c(-maxrows - 0.3, -0.3)
   xrange <- xrange / 1e6

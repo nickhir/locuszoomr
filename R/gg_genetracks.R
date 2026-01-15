@@ -21,6 +21,11 @@
 #'   for rectangle border and `gene_col` for the fill colour.
 #' @param maxrows Specifies maximum number of rows to display in gene annotation
 #'   panel.
+#' @param setrownumber Numeric value specifying the exact number of rows to allocate
+#'   for gene tracks, independent of text size. When specified, all genes are shown
+#'   by wrapping them into the specified number of rows. If fewer rows are needed,
+#'   empty rows are created. If more rows are needed, genes will overlap.
+#'   Takes precedence over \code{maxrows} when both are specified. Default is \code{NULL}.
 #' @param text_pos Character value of either 'top' or 'left' specifying
 #'   placement of gene name labels.
 #' @param italics Logical whether gene text is in italics.
@@ -69,6 +74,7 @@ gg_genetracks <- function(loc,
                           exon_border = 'blue4',
                           showExons = TRUE,
                           maxrows = NULL,
+                          setrownumber = NULL,
                           text_pos = 'top',
                           italics = FALSE,
                           xticks = TRUE,
@@ -88,6 +94,7 @@ gg_genetracks <- function(loc,
                        exon_border,
                        showExons,
                        maxrows,
+                       setrownumber,
                        text_pos,
                        italics,
                        highlight, highlight_col,
